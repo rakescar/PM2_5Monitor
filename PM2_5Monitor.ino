@@ -10,7 +10,7 @@
 AltSoftSerial altSerial;
 //SoftwareSerial altSerial;
 
-//YWrobot I2C 1602液晶屏
+//I2C 1602液晶屏
 LiquidCrystal_I2C lcd(0x20, 16, 2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
 
 //攀藤G5的数据格式
@@ -44,17 +44,22 @@ struct _panteng {
 #define DEVICEID1       354276 // replace your device ID
 #define SENSORID1       400071 // replace your sensor ID
 
-#define RESET_PIN 13
+#define RESET_PIN 13    //ESP8266 reset pin is connected to Arduino pin 13 using a 1K resistor
 
 const char server[] = "api.yeelink.net";   // name address for yeelink API
 
 unsigned long lastConnectionTime = 0;          // last time you connected to the server, in milliseconds
-//boolean lastConnected = false;                 // state of the connection last time through the main loop
-//const unsigned long postingInterval = 5*1000; // delay between 2 datapoints, 5s
-//String returnValue = "";
-//boolean ResponseBegin = false;
 
-//String bar = "###########################################################################################################";
+
+int frame_count = 0;   // number of data frames received from G5S Sensor
+int upload_count = 0;  // number of uploads to the server
+int upload_success_count = 0; // number of successful uploads
+float pm2_5_avg = 0;
+float hcho_avg = 0;
+int data_count = 0;
+int pm1_0, pm2_5, pm10_0, hcho, frame_length, frame_checksum;        //PM1.0、PM2.5、PM10
+int checksum, error_count = 0;
+
 
 void setup()
 {
@@ -74,15 +79,6 @@ void setup()
 
   randomSeed(analogRead(0));
 }
-
-int frame_count = 0;   // number of data frames received from G5S Sensor
-int upload_count = 0;  // number of uploads to the server
-int upload_success_count = 0; // number of successful uploads
-float pm2_5_avg = 0;
-float hcho_avg = 0;
-int data_count = 0;
-int pm1_0, pm2_5, pm10_0, hcho, frame_length, frame_checksum;        //PM1.0、PM2.5、PM10
-int checksum, error_count = 0;
 
 
 void loop()
@@ -115,8 +111,6 @@ void loop()
         break;
       case 2:
         ((unsigned char *) &panteng)[count++] = c;
-        //sprintf(str, "%02X ", c);
-        //Serial.print(str);
         if (count > 30) {
           state = 0;
           pm1_0 = panteng.pm1_0[0] * 256 + panteng.pm1_0[1];
@@ -126,13 +120,6 @@ void loop()
           frame_length = panteng.len[0] * 256 + panteng.len[1];
           frame_checksum = panteng.checksum[0] * 256 + panteng.checksum[1];
 
-
-
-
-
-
-          //sprintf(str, "%d\t%d\t%d\t%d", time++,pm1_0, pm2_5, pm10_0);
-          //Serial.println(str);
           char pm2_5_str[20];
           snprintf(pm2_5_str, 16, "PM2.5/10=%d/%d   ", pm2_5, pm10_0);
           char pm1_0_str[20];
@@ -140,9 +127,6 @@ void loop()
           char hcho_f[10];
           char hcho_str[20];
           sprintf(hcho_str, "HCHO:%s  ", dtostrf(hcho * 0.001, 1, 3, hcho_f));
-
-
-
 
           frame_count++;
 
@@ -153,7 +137,7 @@ void loop()
             pm2_5_avg = pm2_5_avg * (data_count * 1.0 / (data_count + 1)) + pm2_5 * 1.0 / (data_count + 1);
 
           }
-          //keep count max at 100, a spike will be flatten out sooner
+          
           if (data_count < 100) {
             data_count++;
           }
@@ -175,13 +159,10 @@ void loop()
 
         }
         break;
+        
       default:
         break;
     }
-  }
-  else {
-    //lcd.setCursor(0, 1);
-    //lcd.print("waiting...");
   }
 }
 
@@ -216,7 +197,6 @@ void debug () {
 
 // this method makes a HTTP connection to the server:
 void sendData(long device_id, long sensor_id, float thisData) {
-
 
   //reset wifi board every 100 connections made
   if (upload_count != 0 && upload_count % 100 == 0) {
@@ -309,9 +289,9 @@ void readResponse() {
     delay(5000);
   }
 
-
-
   Serial.flush();
+
+  //clear the remaining response content
   while (Serial.available()) {
     Serial.read();
   }

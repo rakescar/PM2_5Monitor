@@ -33,8 +33,8 @@ struct _panteng {
 } panteng;
 
 
-// for yeelink api
-#define APIKEY         "72f18469a82f9396526051ab7ab3e08c" // replace your yeelink api key here
+// API Key for yeelink
+#define APIKEY         "72f18469a82f9396526051ab7ab3e08c" // PLEASE replace your yeelink api key here!!!
 
 //replace the device ID and sensor ID for temperature sensor.
 #define DEVICEID0       354276 // replace your device ID
@@ -54,9 +54,9 @@ unsigned long lastConnectionTime = 0;          // last time you connected to the
 int frame_count = 0;   // number of data frames received from G5S Sensor
 int upload_count = 0;  // number of uploads to the server
 int upload_success_count = 0; // number of successful uploads
-float pm2_5_avg = 0;
-float hcho_avg = 0;
-int data_count = 0;
+//float pm2_5_avg = 0;
+//float hcho_avg = 0;
+//int data_count = 0;
 int pm1_0, pm2_5, pm10_0, hcho, frame_length, frame_checksum;        //PM1.0、PM2.5、PM10
 int checksum, error_count = 0;
 
@@ -90,23 +90,18 @@ void loop()
   static int count = 0;
   static int time = 0;
 
-  // int i;
-  //Serial.print(".");
   if (altSerial.available()) {
-    //Serial.println(".");
     c = altSerial.read();
     switch (state) {
       case 0:
         if (0x42 == c)
           state = 1;
         count = 0;
-        //Serial.println("state1");
         break;
       case 1:
         if (0x4d == c) {
           state = 2;
           count = 0;
-          //Serial.println("state2");
         }
         break;
       case 2:
@@ -130,17 +125,19 @@ void loop()
 
           frame_count++;
 
-          if (data_count == 0) {
-            pm2_5_avg = pm2_5;
-          }
-          else {
-            pm2_5_avg = pm2_5_avg * (data_count * 1.0 / (data_count + 1)) + pm2_5 * 1.0 / (data_count + 1);
-
-          }
           
-          if (data_count < 100) {
-            data_count++;
-          }
+          //TODO: Implement a low pass filter to smooth out the data a bit
+//          if (data_count == 0) {
+//            pm2_5_avg = pm2_5;
+//          }
+//          else {
+//            pm2_5_avg = pm2_5_avg * (data_count * 1.0 / (data_count + 1)) + pm2_5 * 1.0 / (data_count + 1);
+//
+//          }
+//          
+//          if (data_count < 100) {
+//            data_count++;
+//          }
 
           checksum = calculateChecksum();
 
@@ -198,6 +195,7 @@ void debug () {
 // this method makes a HTTP connection to the server:
 void sendData(long device_id, long sensor_id, float thisData) {
 
+  //TODO: implemenet smarter logic for reset wifi based on recent error count.
   //reset wifi board every 100 connections made
   if (upload_count != 0 && upload_count % 100 == 0) {
     resetWifi();

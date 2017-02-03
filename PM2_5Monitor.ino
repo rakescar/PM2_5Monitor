@@ -201,47 +201,49 @@ void sendData(long device_id, long sensor_id, float thisData) {
   Serial.begin(115200);
 
   while (!Serial) {
-    ; // wait for serial port to connect. Needed for Leonardo only
+    ; // wait for serial port to connect. Needed for Leonardo only. TODO: remove this block and test
   }
 
   String json = "{";
   json += "\"value\":" + String(thisData);
   json += "}";
 
-  String cmd;
+  String cmd; // The HTTP request body to be sent out
   cmd = "POST /v1.0/device/";
   cmd += String(device_id);
   cmd += "/sensor/";
   cmd += String(sensor_id);
   cmd += "/datapoints";
   cmd += " HTTP/1.1\r\n";
-  cmd += "Host: api.yeelink.net\r\n";
-  //        cmd += "Accept: */*\r\n";
+  cmd += "Host: api.yeelink.net\r\n"; //this is mandatory for HTTP POST request
+  //        cmd += "Accept: */*\r\n"; //this seems to be optional
   cmd += "U-ApiKey: ";
   cmd += APIKEY;
   cmd += "\r\n";
   cmd += "Connection: close\r\n";
-  //        cmd += "Content-Type: application/x-www-form-urlencoded\r\n";
-  //        cmd += "\r\n";
+  //        cmd += "Content-Type: application/x-www-form-urlencoded\r\n"; //this seems to be optional
   cmd += "Content-Length: " + String(json.length());
   cmd += "\r\n\r\n";
   cmd += json;
   cmd += "\r\n";
   cmd += "\r\n";
 
-  Serial.print(cmd);
-  Serial.flush();
+  Serial.print(cmd); //send out the request thru Serial port
+  
+  Serial.flush(); //not sure whether this is needed or not. TODO: remove this line and test
 
 
-  delay(2000);
-  boolean result = readResponse();
+  delay(2000); //delay 2 seconds and wait for response from server
+  
+  boolean result = readResponse(); //read the response from server and see whether upload is successful
 
-  Serial.end();
+  Serial.end(); //not sure whether this is needed or not. TODO: remove this line and test
 
-  // record the time that the connection was made, regardless of whether the upload was successful
+  // record the time that the connection was made
   lastConnectionTime = millis();
-  if (result ) {
-    lastUploadTime = lastConnectionTime; //record last successful upload time
+  if ( result ) {
+    //if result is successful record the time of last successful upload time
+    lastUploadTime = lastConnectionTime; 
   }
   else {
     //if the result is not successful, check whether need to reset wifi
@@ -266,11 +268,13 @@ void resetWifi() {
 
 boolean readResponse() {
   boolean result = false;
-  String s;
+  
+  String s; //response string, which is the first line of response that contains the HTTP response code.
   while (Serial.available()) {
-    char inChar = (char)Serial.read();
-    // add it to the inputString unless end of line is reached.
 
+    // read one char each time
+    // add it to the response string unless end of line is reached.
+    char inChar = (char)Serial.read();
     if (inChar == '\n' || inChar == '\r') {
       break;
     }
@@ -279,6 +283,8 @@ boolean readResponse() {
 
   }
 
+  //if the response code is 200, upload was successful; 
+  //assume everything else means failure
   if (s == "HTTP/1.1 200 OK") {
     result = true;
     
@@ -294,7 +300,6 @@ boolean readResponse() {
     lcd.setCursor(0, 1);
     lcd.print(s);
 
-    delay(5000);
   }
 
   Serial.flush();

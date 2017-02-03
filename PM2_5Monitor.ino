@@ -6,17 +6,16 @@
 
 
 
-//软串口，Uno开发板：Tx-D9、Rx-D8。Rx接传感器的Tx。
+//软串口，Uno开发板：Tx-D9、Rx-D8。Rx接攀藤G5S传感器的Tx。
 AltSoftSerial altSerial;
-//SoftwareSerial altSerial;
 
 //I2C 1602液晶屏
 LiquidCrystal_I2C lcd(0x20, 16, 2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
 
-//攀藤G5的数据格式
+//攀藤G5S的数据格式
 struct _panteng {
   unsigned char len[2];
-  unsigned char pm1_cf1[2];
+  unsigned char pm1_0_cf1[2];
   unsigned char pm2_5_cf1[2];
   unsigned char pm10_0_cf1[2];
   unsigned char pm1_0[2];
@@ -148,11 +147,10 @@ void loop()
 
             sendData(DEVICEID0, SENSORID0, pm2_5);
 
-            delay(5000);
-
             sendData(DEVICEID0, SENSORID1, hcho * 0.001);
 
-            delay(5000);
+            //avoid sending data again in 10s, otherwise Yeelink will return 406 error
+            delay(10000); 
           }
 
         }
@@ -232,9 +230,7 @@ void sendData(long device_id, long sensor_id, float thisData) {
   
   Serial.flush(); //not sure whether this is needed or not. TODO: remove this line and test
 
-
   delay(2000); //delay 2 seconds and wait for response from server
-  
   boolean result = readResponse(); //read the response from server and see whether upload is successful
 
   Serial.end(); //not sure whether this is needed or not. TODO: remove this line and test

@@ -49,6 +49,7 @@ struct _panteng {
 const char server[] = "api.yeelink.net";   // name address for yeelink API
 
 unsigned long lastConnectionTime = 0;          // last time you connected to the server, in milliseconds
+unsigned long lastUploadTime =0;               // last time of successful upload
 
 
 int frame_count = 0;   // number of data frames received from G5S Sensor
@@ -195,12 +196,6 @@ void debug () {
 // this method makes a HTTP connection to the server:
 void sendData(long device_id, long sensor_id, float thisData) {
 
-  //TODO: implemenet smarter logic for reset wifi based on recent error count.
-  //reset wifi board every 100 connections made
-  if (upload_count != 0 && upload_count % 100 == 0) {
-    resetWifi();
-  }
-
   upload_count++;
 
   Serial.begin(115200);
@@ -239,12 +234,22 @@ void sendData(long device_id, long sensor_id, float thisData) {
 
 
   delay(2000);
-  readResponse();
+  boolean result = readResponse();
 
   Serial.end();
 
-  // note the time that the connection was made:
+  // note the time that the connection was made, regardless of whether the upload was successful
   lastConnectionTime = millis();
+  if (result ) {
+    lastUploadTime = lastConnectionTime; //record last successful upload time
+  }
+  else {
+    //reset wifi if there has been no sucessfull upload in a certain period
+    if ((lastConnectionTime-lastUploadTime) > 60000 ) {
+      resetWifi();
+      lastUploadTime += 60000; //avoid resetting wifi again in the next 60 seconds
+    }
+  }
 }
 
 void resetWifi() {
@@ -259,6 +264,7 @@ void resetWifi() {
 }
 
 void readResponse() {
+  boolean result = false;
   String s;
   while (Serial.available()) {
     char inChar = (char)Serial.read();
@@ -273,12 +279,15 @@ void readResponse() {
   }
 
   if (s == "HTTP/1.1 200 OK") {
-
+    result = true;
+    
     upload_success_count++;
     lcd.setCursor(0, 0);
     lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
 
   } else {
+    result = false;
+    
     lcd.setCursor(0, 0);
     lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
     lcd.setCursor(0, 1);
@@ -294,4 +303,5 @@ void readResponse() {
     Serial.read();
   }
 
+  return result;
 }

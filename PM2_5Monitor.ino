@@ -263,7 +263,7 @@ void resetWifi() {
   lcd.print("Wifi reconnected...");
 }
 
-void readResponse() {
+boolean readResponse() {
   boolean result = false;
   String s;
   while (Serial.available()) {

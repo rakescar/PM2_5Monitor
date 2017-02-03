@@ -238,12 +238,13 @@ void sendData(long device_id, long sensor_id, float thisData) {
 
   Serial.end();
 
-  // note the time that the connection was made, regardless of whether the upload was successful
+  // record the time that the connection was made, regardless of whether the upload was successful
   lastConnectionTime = millis();
   if (result ) {
     lastUploadTime = lastConnectionTime; //record last successful upload time
   }
   else {
+    //if the result is not successful, check whether need to reset wifi
     //reset wifi if there has been no sucessfull upload in a certain period
     if ((lastConnectionTime-lastUploadTime) > 60000 ) {
       resetWifi();

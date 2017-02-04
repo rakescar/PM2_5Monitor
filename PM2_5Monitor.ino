@@ -131,6 +131,7 @@ void loop()
       //      1. avoid random spike of high value. 
       //      2. avoid oscillation between adjacent value points
       //      3. allow tuning between smooth output and fast response 
+      //      4. minimize memory usage
 //          if (data_count == 0) {
 //            pm2_5_avg = pm2_5;
 //          }

@@ -66,7 +66,7 @@ void setup()
 {
 
   pinMode(RESET_PIN, OUTPUT);
-  digitalWrite(RESET_PIN, HIGH); //seems the digitial pins are default to LOW, need to initialize to HIGH to avoid constant reset.
+  digitalWrite(RESET_PIN, HIGH); //seems the digital pins are default to LOW, need to initialize to HIGH to avoid constant reset.
 
   lcd.init();                      // initialize the lcd
   //lcd.backlight();
@@ -128,6 +128,9 @@ void loop()
 
       
       //TODO: Implement a low pass filter to smooth out the data a bit
+      //      1. avoid random spike of high value. 
+      //      2. avoid oscillation between adjacent value points
+      //      3. allow tuning between smooth output and fast response 
 //          if (data_count == 0) {
 //            pm2_5_avg = pm2_5;
 //          }
@@ -247,7 +250,7 @@ void sendData(long device_id, long sensor_id, float thisData) {
   }
   else {
   //if the result is not successful, check whether need to reset wifi
-  //reset wifi if there has been no sucessfull upload in a certain period
+  //reset wifi if there has been no successful upload in a certain period
   if ((lastConnectionTime-lastUploadTime) > 60000 ) {
     resetWifi();
     lastUploadTime += 60000; //avoid resetting wifi again in the next 60 seconds

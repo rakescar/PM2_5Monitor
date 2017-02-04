@@ -59,6 +59,7 @@ int upload_success_count = 0; // number of successful uploads
 //int data_count = 0;
 int pm1_0, pm2_5, pm10_0, hcho, frame_length, frame_checksum;        //PM1.0、PM2.5、PM10
 int checksum, error_count = 0;
+int reset_count =0;
 
 
 void setup()
@@ -71,8 +72,8 @@ void setup()
   //lcd.backlight();
   lcd.noBacklight();
 
-  Serial.begin(115200);        //USB串口向PC发送数据
-  altSerial.begin(9600);        //软串口连接传感器
+  Serial.begin(115200);        //Hardware Serial to ESP8266
+  altSerial.begin(9600);        //Soft Serial on Pin 8 to G5S Sensor
 
   lcd.setCursor(0, 0);
   lcd.print("ready...");
@@ -147,10 +148,12 @@ void loop()
 
             sendData(DEVICEID0, SENSORID0, pm2_5);
 
+            delay(5000); 
+
             sendData(DEVICEID0, SENSORID1, hcho * 0.001);
 
             //avoid sending data again in 10s, otherwise Yeelink will return 406 error
-            delay(10000); 
+            delay(5000); 
           }
 
         }
@@ -196,7 +199,7 @@ void sendData(long device_id, long sensor_id, float thisData) {
 
   upload_count++;
 
-  Serial.begin(115200);
+//  Serial.begin(115200);
 
   while (!Serial) {
     ; // wait for serial port to connect. Needed for Leonardo only. TODO: remove this block and test
@@ -233,7 +236,7 @@ void sendData(long device_id, long sensor_id, float thisData) {
   delay(2000); //delay 2 seconds and wait for response from server
   boolean result = readResponse(); //read the response from server and see whether upload is successful
 
-  Serial.end(); //not sure whether this is needed or not. TODO: remove this line and test
+//  Serial.end(); //not sure whether this is needed or not. TODO: remove this line and test
 
   // record the time that the connection was made
   lastConnectionTime = millis();
@@ -252,6 +255,7 @@ void sendData(long device_id, long sensor_id, float thisData) {
 }
 
 void resetWifi() {
+  reset_count++;
   lcd.setCursor(0, 1);
   lcd.print("Resetting Wifi...");
   digitalWrite(RESET_PIN, LOW);    // Reset ESP8266
@@ -259,7 +263,7 @@ void resetWifi() {
   digitalWrite(RESET_PIN, HIGH);
   delay(10000);                    // wait for wifi reconnect
   lcd.setCursor(0, 1);
-  lcd.print("Wifi reconnected...");
+  lcd.print(String(reset_count)+" Wifi reconnected...");
 }
 
 boolean readResponse() {
@@ -293,8 +297,8 @@ boolean readResponse() {
     
     lcd.setCursor(0, 0);
     lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
-    lcd.setCursor(0, 1);
-    lcd.print(s);
+//    lcd.setCursor(0, 1);
+//    lcd.print(s);
 
   }
 

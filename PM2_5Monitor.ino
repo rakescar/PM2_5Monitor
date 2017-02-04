@@ -132,6 +132,13 @@ void loop()
       //      2. avoid oscillation between adjacent value points
       //      3. allow tuning between smooth output and fast response 
       //      4. minimize memory usage
+
+      //    cap the increase/decrease change to 10 points per second, which is 10 ug/m3 for PM2.5 and 0.01 ug/m3 for HCHO
+      //    need to be careful with this time based calculation as the time between two readings could be less than a second
+      //    create a branch and use Serial to debug first
+      //    use weighted average to smooth out the curve. start simple by using just two values, current reading and previous reading.
+      //    if equal weight ratio is given for the two readings, it will prevent from oscillation as well
+      //    
 //          if (data_count == 0) {
 //            pm2_5_avg = pm2_5;
 //          }

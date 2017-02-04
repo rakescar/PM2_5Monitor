@@ -92,42 +92,42 @@ void loop()
   static int time = 0;
 
   if (altSerial.available()) {
-    c = altSerial.read();
-    switch (state) {
-      case 0:
-        if (0x42 == c)
-          state = 1;
-        count = 0;
-        break;
-      case 1:
-        if (0x4d == c) {
-          state = 2;
-          count = 0;
-        }
-        break;
-      case 2:
-        ((unsigned char *) &panteng)[count++] = c;
-        if (count > 30) {
-          state = 0;
-          pm1_0 = panteng.pm1_0[0] * 256 + panteng.pm1_0[1];
-          pm2_5 = panteng.pm2_5[0] * 256 + panteng.pm2_5[1];
-          pm10_0 = panteng.pm10_0[0] * 256 + panteng.pm10_0[1];
-          hcho = panteng.hcho[0] * 256 + panteng.hcho[1];
-          frame_length = panteng.len[0] * 256 + panteng.len[1];
-          frame_checksum = panteng.checksum[0] * 256 + panteng.checksum[1];
+  c = altSerial.read();
+  switch (state) {
+    case 0:
+    if (0x42 == c)
+      state = 1;
+    count = 0;
+    break;
+    case 1:
+    if (0x4d == c) {
+      state = 2;
+      count = 0;
+    }
+    break;
+    case 2:
+    ((unsigned char *) &panteng)[count++] = c;
+    if (count > 30) {
+      state = 0;
+      pm1_0 = panteng.pm1_0[0] * 256 + panteng.pm1_0[1];
+      pm2_5 = panteng.pm2_5[0] * 256 + panteng.pm2_5[1];
+      pm10_0 = panteng.pm10_0[0] * 256 + panteng.pm10_0[1];
+      hcho = panteng.hcho[0] * 256 + panteng.hcho[1];
+      frame_length = panteng.len[0] * 256 + panteng.len[1];
+      frame_checksum = panteng.checksum[0] * 256 + panteng.checksum[1];
 
-          char pm2_5_str[20];
-          snprintf(pm2_5_str, 16, "PM2.5/10=%d/%d   ", pm2_5, pm10_0);
-          char pm1_0_str[20];
-          snprintf(pm1_0_str, 16, "PM1.0/10=%d/%d   ", pm1_0, pm10_0);
-          char hcho_f[10];
-          char hcho_str[20];
-          sprintf(hcho_str, "HCHO:%s  ", dtostrf(hcho * 0.001, 1, 3, hcho_f));
+      char pm2_5_str[20];
+      snprintf(pm2_5_str, 16, "PM2.5/10=%d/%d   ", pm2_5, pm10_0);
+      char pm1_0_str[20];
+      snprintf(pm1_0_str, 16, "PM1.0/10=%d/%d   ", pm1_0, pm10_0);
+      char hcho_f[10];
+      char hcho_str[20];
+      sprintf(hcho_str, "HCHO:%s  ", dtostrf(hcho * 0.001, 1, 3, hcho_f));
 
-          frame_count++;
+      frame_count++;
 
-          
-          //TODO: Implement a low pass filter to smooth out the data a bit
+      
+      //TODO: Implement a low pass filter to smooth out the data a bit
 //          if (data_count == 0) {
 //            pm2_5_avg = pm2_5;
 //          }
@@ -140,34 +140,34 @@ void loop()
 //            data_count++;
 //          }
 
-          checksum = calculateChecksum();
+      checksum = calculateChecksum();
 
-          debug();
+      debug();
 
-          if (checksum == frame_checksum ) {
+      if (checksum == frame_checksum ) {
 
-            sendData(DEVICEID0, SENSORID0, pm2_5);
+      sendData(DEVICEID0, SENSORID0, pm2_5);
 
-            delay(5000);
+      delay(5000);
 
-            sendData(DEVICEID0, SENSORID1, hcho * 0.001);
+      sendData(DEVICEID0, SENSORID1, hcho * 0.001);
 
-            delay(5000);
-          }
+      delay(5000);
+      }
 
-        }
-        break;
-        
-      default:
-        break;
     }
+    break;
+    
+    default:
+    break;
+  }
   }
 }
 
 int calculateChecksum() {
   int checksum = 143; //0x42+0x4d = 143
   for (int i = 0; i < 28; i++) {
-    checksum += ((unsigned char *) &panteng)[i];
+  checksum += ((unsigned char *) &panteng)[i];
   }
   return checksum;
 }
@@ -175,20 +175,20 @@ int calculateChecksum() {
 void debug () {
 
   if (frame_count % 100 == 0) {
-    Serial.println("\n>>>>>>>>>>>>>> Frame Count: " + String(frame_count) + "Error Count: " + String(error_count) + "<<<<<<<<<<<<<<<<");
+  Serial.println("\n>>>>>>>>>>>>>> Frame Count: " + String(frame_count) + "Error Count: " + String(error_count) + "<<<<<<<<<<<<<<<<");
   }
 
   if (checksum != frame_checksum ) {
-    error_count++;
-    Serial.println("\n>>>>>> OH NO !!!  " + String(error_count) + "<<<<<<<<<<<");
+  error_count++;
+  Serial.println("\n>>>>>> OH NO !!!  " + String(error_count) + "<<<<<<<<<<<");
 
-    Serial.print("PM2.5: ");
-    Serial.println(pm2_5);
-    Serial.print("HCHO: ");
-    Serial.println(hcho * 0.001);
+  Serial.print("PM2.5: ");
+  Serial.println(pm2_5);
+  Serial.print("HCHO: ");
+  Serial.println(hcho * 0.001);
 
-    Serial.println("Frame Length: " + String(frame_length));
-    Serial.println("Frame Checksum: " + String(frame_checksum) + " Calculated Checksum: " + String(checksum));
+  Serial.println("Frame Length: " + String(frame_length));
+  Serial.println("Frame Checksum: " + String(frame_checksum) + " Calculated Checksum: " + String(checksum));
 
   }
 }
@@ -201,7 +201,7 @@ void sendData(long device_id, long sensor_id, float thisData) {
   Serial.begin(115200);
 
   while (!Serial) {
-    ; // wait for serial port to connect. Needed for Leonardo only. TODO: remove this block and test
+  ; // wait for serial port to connect. Needed for Leonardo only. TODO: remove this block and test
   }
 
   String json = "{";
@@ -242,16 +242,16 @@ void sendData(long device_id, long sensor_id, float thisData) {
   // record the time that the connection was made
   lastConnectionTime = millis();
   if ( result ) {
-    //if result is successful record the time of last successful upload time
-    lastUploadTime = lastConnectionTime; 
+  //if result is successful record the time of last successful upload time
+  lastUploadTime = lastConnectionTime; 
   }
   else {
-    //if the result is not successful, check whether need to reset wifi
-    //reset wifi if there has been no sucessfull upload in a certain period
-    if ((lastConnectionTime-lastUploadTime) > 60000 ) {
-      resetWifi();
-      lastUploadTime += 60000; //avoid resetting wifi again in the next 60 seconds
-    }
+  //if the result is not successful, check whether need to reset wifi
+  //reset wifi if there has been no sucessfull upload in a certain period
+  if ((lastConnectionTime-lastUploadTime) > 60000 ) {
+    resetWifi();
+    lastUploadTime += 60000; //avoid resetting wifi again in the next 60 seconds
+  }
   }
 }
 
@@ -272,33 +272,33 @@ boolean readResponse() {
   String s; //response string, which is the first line of response that contains the HTTP response code.
   while (Serial.available()) {
 
-    // read one char each time
-    // add it to the response string unless end of line is reached.
-    char inChar = (char)Serial.read();
-    if (inChar == '\n' || inChar == '\r') {
-      break;
-    }
+  // read one char each time
+  // add it to the response string unless end of line is reached.
+  char inChar = (char)Serial.read();
+  if (inChar == '\n' || inChar == '\r') {
+    break;
+  }
 
-    s += inChar;
+  s += inChar;
 
   }
 
   //if the response code is 200, upload was successful; 
   //assume everything else means failure
   if (s == "HTTP/1.1 200 OK") {
-    result = true;
-    
-    upload_success_count++;
-    lcd.setCursor(0, 0);
-    lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
+  result = true;
+  
+  upload_success_count++;
+  lcd.setCursor(0, 0);
+  lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
 
   } else {
-    result = false;
-    
-    lcd.setCursor(0, 0);
-    lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
-    lcd.setCursor(0, 1);
-    lcd.print(s);
+  result = false;
+  
+  lcd.setCursor(0, 0);
+  lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
+  lcd.setCursor(0, 1);
+  lcd.print(s);
 
   }
 
@@ -306,7 +306,7 @@ boolean readResponse() {
 
   //clear the remaining response content
   while (Serial.available()) {
-    Serial.read();
+  Serial.read();
   }
 
   return result;

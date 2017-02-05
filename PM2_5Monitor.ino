@@ -43,6 +43,14 @@ struct _panteng {
 #define DEVICEID1       354276 // replace your device ID
 #define SENSORID1       400071 // replace your sensor ID
 
+#define FILTER_SIZE 10  // size of filter buffer for revious reading values
+
+int pm2_5_values[FILTER_SIZE] = {0};
+int hcho_values[FILTER_SIZE] = {0};
+int filter_index =0;
+int coe[FILTER_SIZE];
+int coe_total;
+
 #define RESET_PIN 13    //ESP8266 reset pin is connected to Arduino pin 13 using a 1K resistor
 
 const char server[] = "api.yeelink.net";   // name address for yeelink API
@@ -67,6 +75,12 @@ void setup()
 
   pinMode(RESET_PIN, OUTPUT);
   digitalWrite(RESET_PIN, HIGH); //seems the digital pins are default to LOW, need to initialize to HIGH to avoid constant reset.
+
+  //initialize coefficient array of weight ratio.
+  for (int i=0; i<FILTER_SIZE; i++) {
+    coe[i]=FILTER_SIZE-i;
+    coe_total += coe[i];
+  }
 
   lcd.init();                      // initialize the lcd
   //lcd.backlight();
@@ -139,6 +153,16 @@ void loop()
       //    use weighted average to smooth out the curve. start simple by using just two values, current reading and previous reading.
       //    if equal weight ratio is given for the two readings, it will prevent from oscillation as well
       //    
+      int index;
+      float pm2_5_value, hcho_value;
+      for (int i=1; i<FILTER_SIZE; i++) {
+        index = filter_index - i;
+        if (index <0) index += FILTER_SIZE;
+        pm2_5_value += (pm2_5_values[index]*coe[index]) / coe_total;
+        hcho_value += (hcho_values[index]*coe[index]) / coe_total;
+      }
+      
+      
 //          if (data_count == 0) {
 //            pm2_5_avg = pm2_5;
 //          }
@@ -274,7 +298,7 @@ void resetWifi() {
   digitalWrite(RESET_PIN, HIGH);
   delay(10000);                    // wait for wifi reconnect
   lcd.setCursor(0, 1);
-  lcd.print(String(reset_count)+" Wifi reconnected...");
+  lcd.print(String(reset_count)+" Wifi reset");
 }
 
 boolean readResponse() {

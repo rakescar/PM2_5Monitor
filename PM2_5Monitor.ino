@@ -43,7 +43,7 @@ struct _panteng {
 #define DEVICEID1       354276 // replace your device ID
 #define SENSORID1       400071 // replace your sensor ID
 
-#define FILTER_SIZE 10  // size of filter buffer for revious reading values
+#define FILTER_SIZE 6  // size of filter buffer for revious reading values
 
 int pm2_5_values[FILTER_SIZE] = {0};
 int hcho_values[FILTER_SIZE] = {0};
@@ -69,6 +69,8 @@ int pm1_0, pm2_5, pm10_0, hcho, frame_length, frame_checksum;        //PM1.0、P
 int checksum, error_count = 0;
 int reset_count =0;
 
+//these are filtered values
+float pm2_5_value, hcho_value;
 
 void setup()
 {
@@ -141,27 +143,9 @@ void loop()
       frame_count++;
 
       
-      //TODO: Implement a low pass filter to smooth out the data a bit
-      //      1. avoid random spike of high value. 
-      //      2. avoid oscillation between adjacent value points
-      //      3. allow tuning between smooth output and fast response 
-      //      4. minimize memory usage
 
-      //    cap the increase/decrease change to 10 points per second, which is 10 ug/m3 for PM2.5 and 0.01 ug/m3 for HCHO
-      //    need to be careful with this time based calculation as the time between two readings could be less than a second
-      //    create a branch and use Serial to debug first
-      //    use weighted average to smooth out the curve. start simple by using just two values, current reading and previous reading.
-      //    if equal weight ratio is given for the two readings, it will prevent from oscillation as well
-      //    
-      int index;
-      float pm2_5_value, hcho_value;
-      for (int i=1; i<FILTER_SIZE; i++) {
-        index = filter_index - i;
-        if (index <0) index += FILTER_SIZE;
-        pm2_5_value += (pm2_5_values[index]*coe[index]) / coe_total;
-        hcho_value += (hcho_values[index]*coe[index]) / coe_total;
-      }
-      
+
+ 
       
 //          if (data_count == 0) {
 //            pm2_5_avg = pm2_5;
@@ -180,15 +164,47 @@ void loop()
       debug();
 
       if (checksum == frame_checksum ) {
+  
+        //TODO: refactor the following logic into a method that takes in the array, and current index
+        //      1. avoid random spike of high value. 
+        //      2. avoid oscillation between adjacent value points
+        //      3. allow tuning between smooth output and fast response 
+        //      4. minimize memory usage
+  
+        //    cap the increase/decrease change to 10 points per second, which is 10 ug/m3 for PM2.5 and 0.01 ug/m3 for HCHO
+        //    need to be careful with this time based calculation as the time between two readings could be less than a second
+        //    create a branch and use Serial to debug first
+        //    use weighted average to smooth out the curve. start simple by using just two values, current reading and previous reading.
+        //    if equal weight ratio is given for the two readings, it will prevent from oscillation as well
+        //  
+        
+        filter_index= (filter_index+1)%FILTER_SIZE;
+        pm2_5_values[filter_index]= pm2_5;
+        hcho_values[filter_index]= hcho;  
+        int index;
+        pm2_5_value=0;
+        hcho_value=0;
+        for (int i=0; i<FILTER_SIZE; i++) {
+          index = filter_index - i;
+          if (index <0) index += FILTER_SIZE;
+          pm2_5_value += (pm2_5_values[index]*coe[i]) *1.00/ coe_total;
+          hcho_value += (hcho_values[index]*coe[i]) *1.00/ coe_total;
+        }
+  
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("PM2.5: " + String(pm2_5) + "/" + String(pm2_5_value));
+        lcd.setCursor(0, 1);
+        lcd.print("HCHO: " + String(hcho) + "/" + String(hcho_value));    
 
-      sendData(DEVICEID0, SENSORID0, pm2_5);
-
-      delay(5000);
-
-      sendData(DEVICEID0, SENSORID1, hcho * 0.001);
-
-      //avoid sending data too frequently, otherwise Yeelink will return 406 error
-      delay(5000);
+        sendData(DEVICEID0, SENSORID0, pm2_5_value);
+  
+        delay(5000);
+  
+        sendData(DEVICEID0, SENSORID1, hcho_value * 0.001);
+  
+        //avoid sending data too frequently, otherwise Yeelink will return 406 error
+        delay(5000);
       }
 
     }
@@ -240,8 +256,12 @@ void sendData(long device_id, long sensor_id, float thisData) {
   ; // wait for serial port to connect. Needed for Leonardo only. TODO: remove this block and test
   }
 
+      char data_str[10];
+
+      dtostrf(thisData, 1, 3, data_str);  
+
   String json = "{";
-  json += "\"value\":" + String(thisData);
+  json += "\"value\":" + String(data_str);
   json += "}";
 
   String cmd; // The HTTP request body to be sent out
@@ -324,15 +344,15 @@ boolean readResponse() {
   result = true;
   
   upload_success_count++;
-  lcd.setCursor(0, 0);
-  lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
+//  lcd.setCursor(0, 0);
+//  lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
 
   } else {
 
     result = false;
     
-    lcd.setCursor(0, 0);
-    lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
+//    lcd.setCursor(0, 0);
+//    lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
 //    lcd.setCursor(0, 1);
 //    lcd.print(s);
 

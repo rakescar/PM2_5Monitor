@@ -73,7 +73,7 @@ int reset_count =0;
 unsigned long pm2_5_time=0, hcho_time=0;
 
 //these are filtered values
-float pm2_5_value, hcho_value;
+float pm2_5_value=0, hcho_value=0;
 
 void setup()
 {
@@ -115,87 +115,78 @@ void loop()
   //      key is to setup timer and call back instead of use the blocking delay() method
 
   if (altSerial.available()) {
-  c = altSerial.read();
-  switch (state) {
-    case 0:
-    if (0x42 == c)
-      state = 1;
-    count = 0;
-    break;
-    case 1:
-    if (0x4d == c) {
-      state = 2;
+    c = altSerial.read();
+    switch (state) {
+      case 0:
+      if (0x42 == c)
+        state = 1;
       count = 0;
-    }
-    break;
-    case 2:
-    ((unsigned char *) &panteng)[count++] = c;
-    if (count > 30) {
-      state = 0;
-      pm1_0 = panteng.pm1_0[0] * 256 + panteng.pm1_0[1];
-      pm2_5 = panteng.pm2_5[0] * 256 + panteng.pm2_5[1];
-      pm10_0 = panteng.pm10_0[0] * 256 + panteng.pm10_0[1];
-      hcho = panteng.hcho[0] * 256 + panteng.hcho[1];
-      frame_length = panteng.len[0] * 256 + panteng.len[1];
-      frame_checksum = panteng.checksum[0] * 256 + panteng.checksum[1];
-
-      char pm2_5_str[20];
-      snprintf(pm2_5_str, 16, "PM2.5/10=%d/%d   ", pm2_5, pm10_0);
-      char pm1_0_str[20];
-      snprintf(pm1_0_str, 16, "PM1.0/10=%d/%d   ", pm1_0, pm10_0);
-      char hcho_f[10];
-      char hcho_str[20];
-      sprintf(hcho_str, "HCHO:%s  ", dtostrf(hcho * 0.001, 1, 3, hcho_f));
-
-      frame_count++;
-      
-      checksum = calculateChecksum();
-
-      debug();
-
-      if (checksum == frame_checksum ) {
-  
-        filter_index= (filter_index+1) % FILTER_SIZE;
-
-        pm2_5_value = dataFilter(pm2_5_values, filter_index, pm2_5);
-        hcho_value = dataFilter(hcho_values, filter_index, hcho);
-        
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("PM2.5: " + String(pm2_5) + "/" + String(pm2_5_value));
-//        lcd.setCursor(0, 1);
-//        lcd.print("HCHO: " + String(hcho) + "/" + String(hcho_value));  
-        lcd.setCursor(0, 1);
-        lcd.print(String(reset_count)+" Wifi reset");
-        
-        if ( pm2_5_time <= hcho_time ) {
-          if (timerCheck(&pm2_5_time, 5000)) {
-            sendData(DEVICEID0, SENSORID0, pm2_5_value);
-          }
-        }
-        else {
-          if (timerCheck(&pm2_5_time, 5000)) {
-            sendData(DEVICEID0, SENSORID1, hcho_value * 0.001); 
-            hcho_time = pm2_5_time;    
-          }
-        }
-
-
-  
-//        delay(5000);
-  
-
-  
-        //avoid sending data too frequently, otherwise Yeelink will return 406 error
-//        delay(5000);
+      break;
+      case 1:
+      if (0x4d == c) {
+        state = 2;
+        count = 0;
       }
-
-    }
-    break;
+      break;
+      case 2:
+      ((unsigned char *) &panteng)[count++] = c;
+      if (count > 30) {
+        state = 0;
+        pm1_0 = panteng.pm1_0[0] * 256 + panteng.pm1_0[1];
+        pm2_5 = panteng.pm2_5[0] * 256 + panteng.pm2_5[1];
+        pm10_0 = panteng.pm10_0[0] * 256 + panteng.pm10_0[1];
+        hcho = panteng.hcho[0] * 256 + panteng.hcho[1];
+        frame_length = panteng.len[0] * 256 + panteng.len[1];
+        frame_checksum = panteng.checksum[0] * 256 + panteng.checksum[1];
+  
+        char pm2_5_str[20];
+        snprintf(pm2_5_str, 16, "PM2.5/10=%d/%d   ", pm2_5, pm10_0);
+        char pm1_0_str[20];
+        snprintf(pm1_0_str, 16, "PM1.0/10=%d/%d   ", pm1_0, pm10_0);
+        char hcho_f[10];
+        char hcho_str[20];
+        sprintf(hcho_str, "HCHO:%s  ", dtostrf(hcho * 0.001, 1, 3, hcho_f));
+  
+        frame_count++;
+        
+        checksum = calculateChecksum();
+  
+        debug();
+  
+        if (checksum == frame_checksum ) {
     
-    default:
-    break;
+          filter_index= (filter_index+1) % FILTER_SIZE;
+  
+          pm2_5_value = dataFilter(pm2_5_values, filter_index, pm2_5);
+          hcho_value = dataFilter(hcho_values, filter_index, hcho);
+          
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("PM2.5: " + String(pm2_5) + "/" + String(pm2_5_value));
+  //        lcd.setCursor(0, 1);
+  //        lcd.print("HCHO: " + String(hcho) + "/" + String(hcho_value));  
+          lcd.setCursor(0, 1);
+          lcd.print(String(reset_count)+" Wifi reset");
+        }
+  
+      }
+      break;
+      
+      default:
+      break;
+    }
   }
+
+  if ( pm2_5_time <= hcho_time ) {
+    if (timerCheck(&pm2_5_time, 5000)) {
+      sendData(DEVICEID0, SENSORID0, pm2_5_value);
+    }
+  }
+  else {
+    if (timerCheck(&pm2_5_time, 5000)) {
+      sendData(DEVICEID0, SENSORID1, hcho_value * 0.001); 
+      hcho_time = pm2_5_time;    
+    }
   }
 }
 

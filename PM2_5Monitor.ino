@@ -43,7 +43,7 @@ struct _panteng {
 #define DEVICEID1       354276 // replace your device ID
 #define SENSORID1       400071 // replace your sensor ID
 
-#define FILTER_SIZE 6  // size of filter buffer for previous reading values
+#define FILTER_SIZE 10  // size of filter buffer for previous reading values
 
 int pm2_5_values[FILTER_SIZE] = {0};
 int hcho_values[FILTER_SIZE] = {0};

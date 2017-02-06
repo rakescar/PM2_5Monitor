@@ -107,6 +107,10 @@ void loop()
   static int count = 0;
   static int time = 0;
 
+
+  //TODO: separate data reading and data sending into two "threads"
+  //      key is to setup timer and call back instead of use the blocking delay() method
+
   if (altSerial.available()) {
   c = altSerial.read();
   switch (state) {
@@ -170,32 +174,18 @@ void loop()
         //      2. avoid oscillation between adjacent value points
         //      3. allow tuning between smooth output and fast response 
         //      4. minimize memory usage
-  
-        //    cap the increase/decrease change to 10 points per second, which is 10 ug/m3 for PM2.5 and 0.01 ug/m3 for HCHO
-        //    need to be careful with this time based calculation as the time between two readings could be less than a second
-        //    create a branch and use Serial to debug first
-        //    use weighted average to smooth out the curve. start simple by using just two values, current reading and previous reading.
-        //    if equal weight ratio is given for the two readings, it will prevent from oscillation as well
-        //  
+
         
-        filter_index= (filter_index+1)%FILTER_SIZE;
-        pm2_5_values[filter_index]= pm2_5;
-        hcho_values[filter_index]= hcho;  
-        int index;
-        pm2_5_value=0;
-        hcho_value=0;
-        for (int i=0; i<FILTER_SIZE; i++) {
-          index = filter_index - i;
-          if (index <0) index += FILTER_SIZE;
-          pm2_5_value += (pm2_5_values[index]*coe[i]) *1.00/ coe_total;
-          hcho_value += (hcho_values[index]*coe[i]) *1.00/ coe_total;
-        }
-  
+        filter_index= (filter_index+1) % FILTER_SIZE;
+
+        pm2_5_value = dataFilter(pm2_5_values, filter_index, pm2_5);
+        hcho_value = dataFilter(hcho_values, filter_index, hcho);
+        
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("PM2.5: " + String(pm2_5) + "/" + String(pm2_5_value));
         lcd.setCursor(0, 1);
-        lcd.print("HCHO: " + String(hcho) + "/" + String(hcho_value));    
+        lcd.print("HCHO: " + String(hcho) + "/" + String(hcho_value));  
 
         sendData(DEVICEID0, SENSORID0, pm2_5_value);
   
@@ -222,6 +212,30 @@ int calculateChecksum() {
   checksum += ((unsigned char *) &panteng)[i];
   }
   return checksum;
+}
+
+
+float dataFilter( int[] dataArray, int headIndex, int reading) {
+
+  //    TO CONSIDER:  
+  //    cap the increase/decrease change to 10 points per second, which is 10 ug/m3 for PM2.5 and 0.01 mg/m3 for HCHO
+  //    need to be careful with this time based calculation as the time between two readings could be less than a second
+  //    create a branch and use Serial to debug first
+  
+  float result = 0;
+
+  dataArray[headIndex]= reading;
+
+  int index;
+  for (int i=0; i<FILTER_SIZE; i++) {
+    index = headIndex - i;
+    
+    //wraps around when reaching the first element of the array
+    if (index <0) index += FILTER_SIZE; 
+
+    result += (dataArray[index]*coe[i]) *1.00/ coe_total; // TODO: remove 1.00 and test
+  }
+  
 }
 
 void debug () {

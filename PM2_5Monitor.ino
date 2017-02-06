@@ -107,6 +107,10 @@ void loop()
   static int count = 0;
   static int time = 0;
 
+
+  //TODO: separate data reading and data sending into two "threads"
+  //      key is to setup timer and call back instead of use the blocking delay() method
+
   if (altSerial.available()) {
   c = altSerial.read();
   switch (state) {

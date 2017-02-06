@@ -69,6 +69,9 @@ int pm1_0, pm2_5, pm10_0, hcho, frame_length, frame_checksum;        //PM1.0、P
 int checksum, error_count = 0;
 int reset_count =0;
 
+//timestamp for last upload time of PM2.5 & HCHO data
+unsigned long pm2_5_time=0, hcho_time=0;
+
 //these are filtered values
 float pm2_5_value, hcho_value;
 
@@ -145,37 +148,13 @@ void loop()
       sprintf(hcho_str, "HCHO:%s  ", dtostrf(hcho * 0.001, 1, 3, hcho_f));
 
       frame_count++;
-
       
-
-
- 
-      
-//          if (data_count == 0) {
-//            pm2_5_avg = pm2_5;
-//          }
-//          else {
-//            pm2_5_avg = pm2_5_avg * (data_count * 1.0 / (data_count + 1)) + pm2_5 * 1.0 / (data_count + 1);
-//
-//          }
-//          
-//          if (data_count < 100) {
-//            data_count++;
-//          }
-
       checksum = calculateChecksum();
 
       debug();
 
       if (checksum == frame_checksum ) {
   
-        //TODO: refactor the following logic into a method that takes in the array, and current index
-        //      1. avoid random spike of high value. 
-        //      2. avoid oscillation between adjacent value points
-        //      3. allow tuning between smooth output and fast response 
-        //      4. minimize memory usage
-
-        
         filter_index= (filter_index+1) % FILTER_SIZE;
 
         pm2_5_value = dataFilter(pm2_5_values, filter_index, pm2_5);
@@ -184,17 +163,31 @@ void loop()
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("PM2.5: " + String(pm2_5) + "/" + String(pm2_5_value));
+//        lcd.setCursor(0, 1);
+//        lcd.print("HCHO: " + String(hcho) + "/" + String(hcho_value));  
         lcd.setCursor(0, 1);
-        lcd.print("HCHO: " + String(hcho) + "/" + String(hcho_value));  
+        lcd.print(String(reset_count)+" Wifi reset");
+        
+        if ( pm2_5_time <= hcho_time ) {
+          if (timerCheck(&pm2_5_time, 5000)) {
+            sendData(DEVICEID0, SENSORID0, pm2_5_value);
+          }
+        }
+        else {
+          if (timerCheck(&pm2_5_time, 5000)) {
+            sendData(DEVICEID0, SENSORID1, hcho_value * 0.001); 
+            hcho_time = pm2_5_time;    
+          }
+        }
 
-        sendData(DEVICEID0, SENSORID0, pm2_5_value);
+
   
-        delay(5000);
+//        delay(5000);
   
-        sendData(DEVICEID0, SENSORID1, hcho_value * 0.001);
+
   
         //avoid sending data too frequently, otherwise Yeelink will return 406 error
-        delay(5000);
+//        delay(5000);
       }
 
     }
@@ -214,8 +207,12 @@ int calculateChecksum() {
   return checksum;
 }
 
-
-float dataFilter( int[] dataArray, int headIndex, int reading) {
+// This method will filter the data to:
+//      1. avoid random spike of high value. 
+//      2. avoid oscillation between adjacent value points
+//      3. allow tuning between smooth output and fast response 
+//      4. minimize memory usage
+float dataFilter( int dataArray[], int headIndex, int reading) {
 
   //    TO CONSIDER:  
   //    cap the increase/decrease change to 10 points per second, which is 10 ug/m3 for PM2.5 and 0.01 mg/m3 for HCHO
@@ -235,7 +232,20 @@ float dataFilter( int[] dataArray, int headIndex, int reading) {
 
     result += (dataArray[index]*coe[i]) *1.00/ coe_total; // TODO: remove 1.00 and test
   }
-  
+
+  return result;
+}
+
+boolean timerCheck(unsigned long *lastMillis, unsigned int delay ) 
+{
+ unsigned long currentMillis = millis();
+ if(currentMillis - *lastMillis >= delay)
+ {
+   *lastMillis = currentMillis;
+   return true;
+ }
+ else
+   return false;
 }
 
 void debug () {

@@ -276,21 +276,13 @@ void sendData(long device_id, long sensor_id, float thisData) {
   json += "}";
 
   String cmd; // The HTTP request body to be sent out
-  cmd = "POST /v1.0/device/";
-  cmd += String(device_id);
-  cmd += "/sensor/";
-  cmd += String(sensor_id);
-  cmd += "/datapoints";
-  cmd += " HTTP/1.1\r\n";
+  cmd = "POST /v1.0/device/"+ String(device_id)+ "/sensor/"+ String(sensor_id)+ "/datapoints HTTP/1.1\r\n";
   cmd += "Host: api.yeelink.net\r\n"; //this is mandatory for HTTP POST request
   //        cmd += "Accept: */*\r\n"; //this seems to be optional
-  cmd += "U-ApiKey: ";
-  cmd += APIKEY;
-  cmd += "\r\n";
+  cmd += "U-ApiKey: "+ String(APIKEY)+ "\r\n";
   cmd += "Connection: close\r\n";
   //        cmd += "Content-Type: application/x-www-form-urlencoded\r\n"; //this seems to be optional
-  cmd += "Content-Length: " + String(json.length());
-  cmd += "\r\n\r\n";
+  cmd += "Content-Length: " + String(json.length())+ "\r\n\r\n";
   cmd += json;
   cmd += "\r\n";
   cmd += "\r\n";
@@ -301,8 +293,6 @@ void sendData(long device_id, long sensor_id, float thisData) {
 
   delay(2000); //delay 2 seconds and wait for response from server
   boolean result = readResponse(); //read the response from server and see whether upload is successful
-
-//  Serial.end(); //not sure whether this is needed or not. TODO: remove this line and test
 
   // record the time that the connection was made
   lastConnectionTime = millis();

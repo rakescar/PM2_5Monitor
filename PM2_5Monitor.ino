@@ -110,10 +110,6 @@ void loop()
   static int count = 0;
   static int time = 0;
 
-
-  //TODO: separate data reading and data sending into two "threads"
-  //      key is to setup timer and call back instead of use the blocking delay() method
-
   if (altSerial.available()) {
     c = altSerial.read();
     switch (state) {
@@ -138,7 +134,7 @@ void loop()
         hcho = panteng.hcho[0] * 256 + panteng.hcho[1];
         frame_length = panteng.len[0] * 256 + panteng.len[1];
         frame_checksum = panteng.checksum[0] * 256 + panteng.checksum[1];
-  
+
         char pm2_5_str[20];
         snprintf(pm2_5_str, 16, "PM2.5/10=%d/%d   ", pm2_5, pm10_0);
         char pm1_0_str[20];
@@ -146,32 +142,32 @@ void loop()
         char hcho_f[10];
         char hcho_str[20];
         sprintf(hcho_str, "HCHO:%s  ", dtostrf(hcho * 0.001, 1, 3, hcho_f));
-  
+
         frame_count++;
-        
+
         checksum = calculateChecksum();
-  
+
         debug();
-  
+
         if (checksum == frame_checksum ) {
-    
+
           filter_index= (filter_index+1) % FILTER_SIZE;
-  
+
           pm2_5_value = dataFilter(pm2_5_values, filter_index, pm2_5);
           hcho_value = dataFilter(hcho_values, filter_index, hcho);
-          
+
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("PM2.5: " + String(pm2_5) + "/" + String(pm2_5_value));
   //        lcd.setCursor(0, 1);
-  //        lcd.print("HCHO: " + String(hcho) + "/" + String(hcho_value));  
+  //        lcd.print("HCHO: " + String(hcho) + "/" + String(hcho_value));
           lcd.setCursor(0, 1);
           lcd.print(String(reset_count)+" Wifi reset");
         }
-  
+
       }
       break;
-      
+
       default:
       break;
     }
@@ -184,8 +180,8 @@ void loop()
   }
   else {
     if (timerCheck(&pm2_5_time, 5000)) {
-      sendData(DEVICEID0, SENSORID1, hcho_value * 0.001); 
-      hcho_time = pm2_5_time;    
+      sendData(DEVICEID0, SENSORID1, hcho_value * 0.001);
+      hcho_time = pm2_5_time;
     }
   }
 }
@@ -199,17 +195,17 @@ int calculateChecksum() {
 }
 
 // This method will filter the data to:
-//      1. avoid random spike of high value. 
+//      1. avoid random spike of high value.
 //      2. avoid oscillation between adjacent value points
-//      3. allow tuning between smooth output and fast response 
+//      3. allow tuning between smooth output and fast response
 //      4. minimize memory usage
 float dataFilter( int dataArray[], int headIndex, int reading) {
 
-  //    TO CONSIDER:  
+  //    TO CONSIDER:
   //    cap the increase/decrease change to 10 points per second, which is 10 ug/m3 for PM2.5 and 0.01 mg/m3 for HCHO
   //    need to be careful with this time based calculation as the time between two readings could be less than a second
   //    create a branch and use Serial to debug first
-  
+
   float result = 0;
 
   dataArray[headIndex]= reading;
@@ -217,9 +213,9 @@ float dataFilter( int dataArray[], int headIndex, int reading) {
   int index;
   for (int i=0; i<FILTER_SIZE; i++) {
     index = headIndex - i;
-    
+
     //wraps around when reaching the first element of the array
-    if (index <0) index += FILTER_SIZE; 
+    if (index <0) index += FILTER_SIZE;
 
     result += (dataArray[index]*coe[i]) *1.00/ coe_total; // TODO: remove 1.00 and test
   }
@@ -227,7 +223,7 @@ float dataFilter( int dataArray[], int headIndex, int reading) {
   return result;
 }
 
-boolean timerCheck(unsigned long *lastMillis, unsigned int delay ) 
+boolean timerCheck(unsigned long *lastMillis, unsigned int delay )
 {
  unsigned long currentMillis = millis();
  if(currentMillis - *lastMillis >= delay)
@@ -273,7 +269,7 @@ void sendData(long device_id, long sensor_id, float thisData) {
 
       char data_str[10];
 
-      dtostrf(thisData, 1, 3, data_str);  
+      dtostrf(thisData, 1, 3, data_str);
 
   String json = "{";
   json += "\"value\":" + String(data_str);
@@ -300,7 +296,7 @@ void sendData(long device_id, long sensor_id, float thisData) {
   cmd += "\r\n";
 
   Serial.print(cmd); //send out the request thru Serial port
-  
+
   Serial.flush(); //not sure whether this is needed or not. TODO: remove this line and test
 
   delay(2000); //delay 2 seconds and wait for response from server
@@ -312,7 +308,7 @@ void sendData(long device_id, long sensor_id, float thisData) {
   lastConnectionTime = millis();
   if ( result ) {
   //if result is successful record the time of last successful upload time
-  lastUploadTime = lastConnectionTime; 
+  lastUploadTime = lastConnectionTime;
   }
   else {
   //if the result is not successful, check whether need to reset wifi
@@ -338,7 +334,7 @@ void resetWifi() {
 
 boolean readResponse() {
   boolean result = false;
-  
+
   String s; //response string, which is the first line of response that contains the HTTP response code.
   while (Serial.available()) {
 
@@ -353,11 +349,11 @@ boolean readResponse() {
 
   }
 
-  //if the response code is 200, upload was successful; 
+  //if the response code is 200, upload was successful;
   //assume everything else means failure
   if (s == "HTTP/1.1 200 OK") {
   result = true;
-  
+
   upload_success_count++;
 //  lcd.setCursor(0, 0);
 //  lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
@@ -365,7 +361,7 @@ boolean readResponse() {
   } else {
 
     result = false;
-    
+
 //    lcd.setCursor(0, 0);
 //    lcd.print("Upload: " + String(upload_success_count) + "/" + String(upload_count));
 //    lcd.setCursor(0, 1);

@@ -43,7 +43,8 @@ struct _panteng {
 #define DEVICEID1       354276 // replace your device ID
 #define SENSORID1       400071 // replace your sensor ID
 
-#define FILTER_SIZE 10  // size of filter buffer for previous reading values
+#define FILTER_SIZE 20  // size of filter buffer for previous reading values
+#define SAMPLE_RATE 5   // rate of sampling, take 1 reading out of N readings 
 
 int pm2_5_values[FILTER_SIZE] = {0};
 int hcho_values[FILTER_SIZE] = {0};
@@ -75,6 +76,9 @@ unsigned long pm2_5_time=0, hcho_time=0;
 //these are filtered values
 float pm2_5_value=0, hcho_value=0;
 
+//a variable to track free RAM and detect memory leak, if any
+int initFreeMemory = -1;
+
 void setup()
 {
 
@@ -83,7 +87,7 @@ void setup()
 
   //initialize coefficient array of weight ratio.
   for (int i=0; i<FILTER_SIZE; i++) {
-    coe[i]=FILTER_SIZE-i;
+    coe[i]=(FILTER_SIZE-i)/2;
     coe_total += coe[i];
   }
 
@@ -151,18 +155,29 @@ void loop()
 
         if (checksum == frame_checksum ) {
 
-          filter_index= (filter_index+1) % FILTER_SIZE;
-
-          pm2_5_value = dataFilter(pm2_5_values, filter_index, pm2_5);
-          hcho_value = dataFilter(hcho_values, filter_index, hcho);
-
-          lcd.clear();
-          lcd.setCursor(0, 0);
-          lcd.print("PM2.5: " + String(pm2_5) + "/" + String(pm2_5_value));
+          if ( frame_count % SAMPLE_RATE ==0 ) {
+            filter_index= (filter_index+1) % FILTER_SIZE;
+  
+            pm2_5_value = dataFilter(pm2_5_values, filter_index, pm2_5);
+            hcho_value = dataFilter(hcho_values, filter_index, hcho);
+  
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("PM2.5: " + String(pm2_5) + "/" + String(pm2_5_value));
+          }
   //        lcd.setCursor(0, 1);
   //        lcd.print("HCHO: " + String(hcho) + "/" + String(hcho_value));
           lcd.setCursor(0, 1);
-          lcd.print(String(reset_count)+" Wifi reset");
+          //lcd.print(String(reset_count)+" Wifi reset");
+
+          if (initFreeMemory == -1) {
+            initFreeMemory = freeRam();
+          }
+          else {
+            lcd.print("RAM Delta: "+ String(initFreeMemory-freeRam()));
+          }
+          
+
         }
 
       }
@@ -174,12 +189,12 @@ void loop()
   }
 
   if ( pm2_5_time <= hcho_time ) {
-    if (timerCheck(&pm2_5_time, 5000)) {
+    if (timerCheck(&pm2_5_time, 10000)) {
       sendData(DEVICEID0, SENSORID0, pm2_5_value);
     }
   }
   else {
-    if (timerCheck(&pm2_5_time, 5000)) {
+    if (timerCheck(&pm2_5_time, 10000)) {
       sendData(DEVICEID0, SENSORID1, hcho_value * 0.001);
       hcho_time = pm2_5_time;
     }
@@ -187,14 +202,14 @@ void loop()
 }
 
 int calculateChecksum() {
-  int checksum = 143; //0x42+0x4d = 143
+  int checksum = 143; //first two bytes: 0x42+0x4d = 143
   for (int i = 0; i < 28; i++) {
   checksum += ((unsigned char *) &panteng)[i];
   }
   return checksum;
 }
 
-// This method will filter the data to:
+// This method will filter the data in order to:
 //      1. avoid random spike of high value.
 //      2. avoid oscillation between adjacent value points
 //      3. allow tuning between smooth output and fast response
@@ -256,12 +271,10 @@ void debug () {
   }
 }
 
-// this method makes a HTTP connection to the server:
+// this method makes a HTTP connection to the server and upload data via a POST request
 void sendData(long device_id, long sensor_id, float thisData) {
 
   upload_count++;
-
-//  Serial.begin(115200);
 
   while (!Serial) {
   ; // wait for serial port to connect. Needed for Leonardo only. TODO: remove this block and test
@@ -303,7 +316,7 @@ void sendData(long device_id, long sensor_id, float thisData) {
   else {
   //if the result is not successful, check whether need to reset wifi
   //reset wifi if there has been no successful upload in a certain period
-  if ((lastConnectionTime-lastUploadTime) > 60000 ) {
+  if ((lastConnectionTime-lastUploadTime) > 120000 ) {
     resetWifi();
     lastUploadTime += 60000; //avoid resetting wifi again in the next 60 seconds
   }
@@ -368,4 +381,13 @@ boolean readResponse() {
   }
 
   return result;
+}
+
+
+
+int freeRam () 
+{
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
 }

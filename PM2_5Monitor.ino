@@ -87,7 +87,8 @@ void setup()
 
   //initialize coefficient array of weight ratio.
   for (int i=0; i<FILTER_SIZE; i++) {
-    coe[i]=(FILTER_SIZE-i)/2;
+    coe[i]=(FILTER_SIZE-i)/3;
+    if (coe[i]==0) coe[i]=1; 
     coe_total += coe[i];
   }
 

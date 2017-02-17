@@ -44,7 +44,7 @@ struct _panteng {
 #define SENSORID1       400071 // replace your sensor ID
 
 #define FILTER_SIZE 20  // size of filter buffer for previous reading values
-#define SAMPLE_RATE 5   // rate of sampling, take 1 reading out of N readings 
+#define SAMPLE_RATE 5   // rate of sampling, take 1 reading out of N readings
 
 int pm2_5_values[FILTER_SIZE] = {0};
 int hcho_values[FILTER_SIZE] = {0};
@@ -88,7 +88,7 @@ void setup()
   //initialize coefficient array of weight ratio.
   for (int i=0; i<FILTER_SIZE; i++) {
     coe[i]=(FILTER_SIZE-i)/3;
-    if (coe[i]==0) coe[i]=1; 
+    if (coe[i]==0) coe[i]=1;
     coe_total += coe[i];
   }
 
@@ -140,13 +140,13 @@ void loop()
         frame_length = panteng.len[0] * 256 + panteng.len[1];
         frame_checksum = panteng.checksum[0] * 256 + panteng.checksum[1];
 
-        char pm2_5_str[20];
-        snprintf(pm2_5_str, 16, "PM2.5/10=%d/%d   ", pm2_5, pm10_0);
-        char pm1_0_str[20];
-        snprintf(pm1_0_str, 16, "PM1.0/10=%d/%d   ", pm1_0, pm10_0);
-        char hcho_f[10];
-        char hcho_str[20];
-        sprintf(hcho_str, "HCHO:%s  ", dtostrf(hcho * 0.001, 1, 3, hcho_f));
+        // char pm2_5_str[20];
+        // snprintf(pm2_5_str, 16, "PM2.5/10=%d/%d   ", pm2_5, pm10_0);
+        // char pm1_0_str[20];
+        // snprintf(pm1_0_str, 16, "PM1.0/10=%d/%d   ", pm1_0, pm10_0);
+        // char hcho_f[10];
+        // char hcho_str[20];
+        // sprintf(hcho_str, "HCHO:%s  ", dtostrf(hcho * 0.001, 1, 3, hcho_f));
 
         frame_count++;
 
@@ -158,10 +158,10 @@ void loop()
 
           if ( frame_count % SAMPLE_RATE ==0 ) {
             filter_index= (filter_index+1) % FILTER_SIZE;
-  
+
             pm2_5_value = dataFilter(pm2_5_values, filter_index, pm2_5);
             hcho_value = dataFilter(hcho_values, filter_index, hcho);
-  
+
             lcd.clear();
             lcd.setCursor(0, 0);
             lcd.print("PM2.5: " + String(pm2_5) + "/" + String(pm2_5_value));
@@ -177,7 +177,7 @@ void loop()
           else {
             lcd.print("RAM Delta: "+ String(initFreeMemory-freeRam()));
           }
-          
+
 
         }
 
@@ -189,15 +189,21 @@ void loop()
     }
   }
 
+  //alternate between sending PM2.5 and HCHO values
+  //using the timerCheck() function as a non-blocking delay() method
+  //inside sendData() there is a blocking call to delay() to wait for response
+  //this makes the sampling frequency unstable but it shouldn't be a problem
   if ( pm2_5_time <= hcho_time ) {
+    //the timerCheck（） will update the timer
     if (timerCheck(&pm2_5_time, 10000)) {
       sendData(DEVICEID0, SENSORID0, pm2_5_value);
     }
   }
   else {
+    //the timerCheck（） will update the timer
     if (timerCheck(&pm2_5_time, 10000)) {
       sendData(DEVICEID0, SENSORID1, hcho_value * 0.001);
-      hcho_time = pm2_5_time;
+      hcho_time = pm2_5_time; //this means next time PM2.5 value will be uploaded
     }
   }
 }
@@ -386,9 +392,9 @@ boolean readResponse() {
 
 
 
-int freeRam () 
+int freeRam ()
 {
-  extern int __heap_start, *__brkval; 
-  int v; 
-  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+  extern int __heap_start, *__brkval;
+  int v;
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
 }
